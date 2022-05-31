@@ -8,6 +8,7 @@ import static org.mockito.ArgumentMatchers.anySet;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -238,6 +239,32 @@ public class StackOperationsTest {
         CloudbreakImageCatalogV3 actual = underTest.generateImageCatalog(nameOrCrn, stack.getWorkspace().getId());
 
         assertEquals(imageCatalog, actual);
+    }
+
+    @Test
+    public void rotateSaltPassword() {
+        NameOrCrn nameOrCrn = NameOrCrn.ofName(stack.getName());
+        long workspaceId = 0L;
+
+        when(stackService.getByNameOrCrnAndWorkspaceIdWithLists(nameOrCrn, workspaceId)).thenReturn(stack);
+
+        underTest.rotateSaltPassword(nameOrCrn, workspaceId);
+
+        verify(stackCommonService).rotateSaltPassword(stack);
+    }
+
+    @Test
+    public void rotateSaltPasswordOnStackWithRunningFlow() {
+        NameOrCrn nameOrCrn = NameOrCrn.ofName(stack.getName());
+        long workspaceId = 0L;
+
+        when(stackService.getByNameOrCrnAndWorkspaceIdWithLists(nameOrCrn, workspaceId)).thenReturn(stack);
+        when(flowLogService.isOtherFlowRunning(stack.getId())).thenReturn(true);
+
+        CloudbreakServiceException exception = assertThrows(CloudbreakServiceException.class, () -> underTest.rotateSaltPassword(nameOrCrn, workspaceId));
+        assertEquals("Operation is running for stack 'simplestack'. Please try again later.", exception.getMessage());
+
+        verify(stackCommonService, never()).rotateSaltPassword(stack);
     }
 
     private StackV4Response stackResponse() {

@@ -1,9 +1,11 @@
 package com.sequenceiq.cloudbreak.controller.v4;
 
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -46,10 +48,13 @@ class StackV4ControllerTest {
     @InjectMocks
     private StackV4Controller underTest;
 
+    @BeforeEach
+    void setUp() {
+        lenient().when(restRequestThreadLocalService.getRequestedWorkspaceId()).thenReturn(WORKSPACE_ID);
+    }
+
     @Test
     void changeImageCatalogInternalTest() {
-        when(restRequestThreadLocalService.getRequestedWorkspaceId()).thenReturn(WORKSPACE_ID);
-
         String imageCatalog = "image-catalog";
         ChangeImageCatalogV4Request request = new ChangeImageCatalogV4Request();
         request.setImageCatalog(imageCatalog);
@@ -61,7 +66,6 @@ class StackV4ControllerTest {
 
     @Test
     void rangerRazEnabledTest() {
-        when(restRequestThreadLocalService.getRequestedWorkspaceId()).thenReturn(WORKSPACE_ID);
         String stackCrn = "test-crn";
 
         underTest.rangerRazEnabledInternal(WORKSPACE_ID, stackCrn, USER_CRN);
@@ -71,8 +75,6 @@ class StackV4ControllerTest {
 
     @Test
     void generateImageCatalogInternalTest() {
-        when(restRequestThreadLocalService.getRequestedWorkspaceId()).thenReturn(WORKSPACE_ID);
-
         underTest.generateImageCatalogInternal(WORKSPACE_ID, STACK_NAME, USER_CRN);
 
         verify(stackOperations).generateImageCatalog(NameOrCrn.ofName(STACK_NAME), WORKSPACE_ID);
@@ -84,5 +86,14 @@ class StackV4ControllerTest {
         when(stackCcmUpgradeService.upgradeCcm(NameOrCrn.ofCrn(STACK_CRN))).thenReturn(actual);
         StackCcmUpgradeV4Response result = underTest.upgradeCcmByCrnInternal(WORKSPACE_ID, STACK_CRN, USER_CRN);
         Assertions.assertSame(actual, result.getFlowIdentifier());
+    }
+
+    @Test
+    public void rotateSaltPasswordInternal() {
+        String stackCrn = "crn";
+
+        underTest.rotateSaltPasswordInternal(WORKSPACE_ID, stackCrn, USER_CRN);
+
+        verify(stackOperations).rotateSaltPassword(NameOrCrn.ofCrn(stackCrn), WORKSPACE_ID);
     }
 }

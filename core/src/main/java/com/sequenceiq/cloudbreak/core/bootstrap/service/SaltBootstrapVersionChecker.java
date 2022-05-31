@@ -23,12 +23,18 @@ public class SaltBootstrapVersionChecker {
 
     private static final Versioned RESTART_NEEDED_FLAG_SUPPORT_MIN_VERSION = () -> "0.13.4";
 
+    private static final Versioned CHANGE_SALTUSER_PASSWORD_SUPPORT_MIN_VERSION = () -> "0.13.6";
+
     public boolean isFingerprintingSupported(Json image) {
         return isSupported(FINGERPRINT_SUPPORT_MIN_VERSION, image);
     }
 
     public boolean isRestartNeededFlagSupported(Json image) {
         return isSupported(RESTART_NEEDED_FLAG_SUPPORT_MIN_VERSION, image);
+    }
+
+    public boolean isChangeSaltuserPasswordSupported(Json image) {
+        return isSupported(CHANGE_SALTUSER_PASSWORD_SUPPORT_MIN_VERSION, image);
     }
 
     private boolean isSupported(Versioned version, Json image) {

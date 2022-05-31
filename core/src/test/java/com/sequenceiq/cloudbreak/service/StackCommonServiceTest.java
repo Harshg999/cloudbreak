@@ -1,5 +1,6 @@
 package com.sequenceiq.cloudbreak.service;
 
+import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -15,6 +16,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import java.util.function.Supplier;
 
 import org.junit.jupiter.api.Assertions;
@@ -34,6 +36,8 @@ import com.sequenceiq.cloudbreak.api.endpoint.v4.stacks.base.StatusRequest;
 import com.sequenceiq.cloudbreak.api.endpoint.v4.stacks.request.StackImageChangeV4Request;
 import com.sequenceiq.cloudbreak.api.endpoint.v4.stacks.request.StackScaleV4Request;
 import com.sequenceiq.cloudbreak.api.endpoint.v4.stacks.request.network.NetworkScaleV4Request;
+import com.sequenceiq.cloudbreak.auth.ThreadBasedUserCrnProvider;
+import com.sequenceiq.cloudbreak.auth.altus.EntitlementService;
 import com.sequenceiq.cloudbreak.auth.crn.Crn;
 import com.sequenceiq.cloudbreak.auth.crn.RegionAwareInternalCrnGenerator;
 import com.sequenceiq.cloudbreak.auth.crn.RegionAwareInternalCrnGeneratorFactory;
@@ -44,6 +48,7 @@ import com.sequenceiq.cloudbreak.common.service.TransactionService;
 import com.sequenceiq.cloudbreak.common.user.CloudbreakUser;
 import com.sequenceiq.cloudbreak.controller.validation.network.MultiAzValidator;
 import com.sequenceiq.cloudbreak.converter.v4.stacks.StackScaleV4RequestToUpdateStackV4RequestConverter;
+import com.sequenceiq.cloudbreak.core.bootstrap.service.ClusterBootstrapper;
 import com.sequenceiq.cloudbreak.domain.ImageCatalog;
 import com.sequenceiq.cloudbreak.domain.stack.Stack;
 import com.sequenceiq.cloudbreak.service.image.ImageCatalogService;
@@ -69,6 +74,8 @@ class StackCommonServiceTest {
 
     private static final NameOrCrn STACK_CRN =
             NameOrCrn.ofCrn("crn:cdp:datahub:us-west-1:9d74eee4-1cad-45d7-b645-7ccf9edbb73d:cluster:6b5a9aa7-223a-4d6a-93ca-27627be773b5");
+
+    private static final String ACTOR_CRN = "crn:cdp:iam:us-west-1:" + UUID.randomUUID() + ":user:" + UUID.randomUUID();
 
     private static final String SUBNET_ID = "aSubnetId";
 
@@ -118,6 +125,12 @@ class StackCommonServiceTest {
 
     @Mock
     private RegionAwareInternalCrnGenerator regionAwareInternalCrnGenerator;
+
+    @Mock
+    private ClusterBootstrapper clusterBootstrapper;
+
+    @Mock
+    private EntitlementService entitlementService;
 
     @InjectMocks
     private StackCommonService underTest;
@@ -345,5 +358,27 @@ class StackCommonServiceTest {
         BadRequestException actual = assertThrows(BadRequestException.class, () -> underTest.putScalingInWorkspace(STACK_NAME, WORKSPACE_ID, updateRequest));
         assertEquals(actual.getMessage(), "Upscaling is not supported on AWS cloudplatform");
 
+    }
+
+    @Test
+    public void testRotateSaltPasswordWithoutEntitlement() {
+        when(entitlementService.isSaltUserPasswordRotationEnabled(any())).thenReturn(false);
+
+        assertThatThrownBy(() -> ThreadBasedUserCrnProvider.doAs(ACTOR_CRN, () -> underTest.rotateSaltPassword(new Stack())))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessage("Rotating salt password is not supported in your account");
+    }
+
+    @Test
+    public void testRotateSaltPassword() {
+        when(entitlementService.isSaltUserPasswordRotationEnabled(any())).thenReturn(true);
+        NameOrCrn nameOrCrn = NameOrCrn.ofName("name");
+        Stack stack = new Stack();
+        stack.setName(nameOrCrn.getName());
+
+        ThreadBasedUserCrnProvider.doAs(ACTOR_CRN, () -> underTest.rotateSaltPassword(stack));
+
+        verify(entitlementService).isSaltUserPasswordRotationEnabled(any());
+        verify(clusterBootstrapper).rotateSaltPassword(stack);
     }
 }

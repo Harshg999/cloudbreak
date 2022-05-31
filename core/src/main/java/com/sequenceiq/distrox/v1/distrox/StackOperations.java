@@ -258,6 +258,14 @@ public class StackOperations implements HierarchyAuthResourcePropertyProvider {
         return stackCommonService.putStartInWorkspace(nameOrCrn, workspaceId);
     }
 
+    public void rotateSaltPassword(NameOrCrn nameOrCrn, Long workspaceId) {
+        Stack stack = stackService.getByNameOrCrnAndWorkspaceIdWithLists(nameOrCrn, workspaceId);
+        if (flowLogService.isOtherFlowRunning(stack.getId())) {
+            throw new CloudbreakServiceException(String.format("Operation is running for stack '%s'. Please try again later.", stack.getName()));
+        }
+        stackCommonService.rotateSaltPassword(stack);
+    }
+
     public FlowIdentifier putScaling(@NotNull NameOrCrn nameOrCrn, Long workspaceId, @Valid StackScaleV4Request updateRequest) {
         return stackCommonService.putScalingInWorkspace(nameOrCrn, workspaceId, updateRequest);
     }

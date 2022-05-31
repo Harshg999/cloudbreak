@@ -9,6 +9,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import com.sequenceiq.cloudbreak.common.service.TransactionService;
+import com.sequenceiq.cloudbreak.domain.SaltSecurityConfig;
 import com.sequenceiq.cloudbreak.domain.SecurityConfig;
 import com.sequenceiq.cloudbreak.domain.stack.Stack;
 import com.sequenceiq.cloudbreak.repository.SecurityConfigRepository;
@@ -58,6 +59,12 @@ public class SecurityConfigService {
             LOGGER.error("Error while saving SecurityConfig", e);
             throw e.getCause();
         }
+    }
+
+    public void changeSaltPassword(SecurityConfig securityConfig, String password) {
+        SaltSecurityConfig saltSecurityConfig = securityConfig.getSaltSecurityConfig();
+        saltSecurityConfig.setSaltPassword(password);
+        saltSecurityConfigService.save(saltSecurityConfig);
     }
 
 }
