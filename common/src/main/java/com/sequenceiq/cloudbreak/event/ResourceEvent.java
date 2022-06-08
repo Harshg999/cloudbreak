@@ -479,6 +479,7 @@ public enum ResourceEvent {
     DATALAKE_RECOVERY_TEARDOWN_FINISHED("datalake.recovery.teardown.finished"),
     DATALAKE_RECOVERY_FAILED("datalake.recovery.failed"),
     DATALAKE_RECOVERY_FINISHED("datalake.recovery.finished"),
+    DATALAKE_RECOVERY_STARTED("datalake.recovery.started"),
 
     DATALAKE_RESIZE_TRIGGERED("datalake.resize.triggered"),
 
