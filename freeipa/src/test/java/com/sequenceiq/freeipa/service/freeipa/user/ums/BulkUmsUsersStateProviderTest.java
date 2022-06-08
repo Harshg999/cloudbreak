@@ -8,7 +8,6 @@ import static org.mockito.Mockito.when;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -58,8 +57,7 @@ public class BulkUmsUsersStateProviderTest  extends BaseUmsUsersStateProviderTes
     void getUmsUsersStateMapBulk() {
         setupMocksForBulk();
 
-        Map<String, UmsUsersState> umsUsersStateMap = underTest.get(
-                ACCOUNT_ID, List.of(ENVIRONMENT_CRN), Optional.empty());
+        Map<String, UmsUsersState> umsUsersStateMap = underTest.get(ACCOUNT_ID, List.of(ENVIRONMENT_CRN));
 
         verifyUmsUsersStateBuilderMap(umsUsersStateMap);
     }
@@ -140,14 +138,14 @@ public class BulkUmsUsersStateProviderTest  extends BaseUmsUsersStateProviderTes
                 .collect(Collectors.toList()));
 
         when(grpcUmsClient.getUserSyncStateModel(
-                eq(ACCOUNT_ID), eq(expectedRightsChecks), eq(true), any(Optional.class), any()))
+                eq(ACCOUNT_ID), eq(expectedRightsChecks), eq(true), any()))
                 .thenReturn(builder.build());
 
         doAnswer(invocation -> workloadCredentialConverter
                 .toWorkloadCredential(
                         testData.memberCrnToWorkloadCredentials.get(invocation.getArgument(0, String.class))))
                 .when(umsCredentialProvider)
-                .getCredentials(anyString(), any(Optional.class));
+                .getCredentials(anyString());
 
         setupServicePrincipals();
     }

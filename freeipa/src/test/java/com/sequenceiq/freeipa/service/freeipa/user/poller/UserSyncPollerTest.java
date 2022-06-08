@@ -154,7 +154,7 @@ class UserSyncPollerTest {
         when(userSyncPollerEntitlementChecker.isAccountEntitled(anyString())).thenReturn(true);
         UserSyncStatus userSyncStatus = UserSyncTestUtils.createUserSyncStatus(stack);
         when(userSyncStatusService.getOrCreateForStack(userSyncStatus.getStack())).thenReturn(userSyncStatus);
-        when(umsEventGenerationIdsProvider.getEventGenerationIds(any(), any())).thenReturn(UserSyncTestUtils.createUniqueUmsEventGenerationIds());
+        when(umsEventGenerationIdsProvider.getEventGenerationIds(any())).thenReturn(UserSyncTestUtils.createUniqueUmsEventGenerationIds());
         return userSyncStatus;
     }
 }

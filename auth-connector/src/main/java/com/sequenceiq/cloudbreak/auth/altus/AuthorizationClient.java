@@ -16,6 +16,7 @@ import com.sequenceiq.cloudbreak.common.exception.CloudbreakServiceException;
 import com.sequenceiq.cloudbreak.grpc.altus.AltusMetadataInterceptor;
 import com.sequenceiq.cloudbreak.grpc.altus.CallingServiceNameInterceptor;
 import com.sequenceiq.cloudbreak.grpc.util.GrpcUtil;
+import com.sequenceiq.cloudbreak.logger.MDCUtils;
 
 import io.grpc.ManagedChannel;
 import io.grpc.Status;
@@ -52,15 +53,14 @@ public class AuthorizationClient {
         this.regionAwareInternalCrnGeneratorFactory = regionAwareInternalCrnGeneratorFactory;
     }
 
-    public void checkRight(String requestId, String userCrn, String right, String resource) {
-        checkNotNull(requestId, "requestId should not be null.");
+    public void checkRight(String userCrn, String right, String resource) {
         checkNotNull(userCrn, "userCrn should not be null.");
         checkNotNull(right, "right should not be null.");
         AuthorizationProto.RightCheck.Builder rightCheckBuilder = AuthorizationProto.RightCheck.newBuilder().setRight(right);
         if (!StringUtils.isEmpty(resource)) {
             rightCheckBuilder.setResource(resource);
         }
-        newStub(requestId).checkRight(
+        newStub().checkRight(
                 AuthorizationProto.CheckRightRequest.newBuilder()
                         .setActorCrn(userCrn)
                         .setCheck(rightCheckBuilder.build())
@@ -68,12 +68,11 @@ public class AuthorizationClient {
         );
     }
 
-    public List<Boolean> hasRights(String requestId, String actorCrn, Iterable<AuthorizationProto.RightCheck> rightChecks) {
-        checkNotNull(requestId, "requestId should not be null.");
+    public List<Boolean> hasRights(String actorCrn, Iterable<AuthorizationProto.RightCheck> rightChecks) {
         checkNotNull(actorCrn, "actorCrn should not be null.");
         checkNotNull(rightChecks, "rightChecks should not be null.");
         try {
-            AuthorizationProto.HasRightsResponse response = newStub(requestId).hasRights(
+            AuthorizationProto.HasRightsResponse response = newStub().hasRights(
                     AuthorizationProto.HasRightsRequest.newBuilder()
                             .setActorCrn(actorCrn)
                             .addAllCheck(rightChecks)
@@ -100,8 +99,8 @@ public class AuthorizationClient {
      * @param requestId the request ID
      * @return the stub
      */
-    private AuthorizationGrpc.AuthorizationBlockingStub newStub(String requestId) {
-        checkNotNull(requestId, "requestId should not be null.");
+    private AuthorizationGrpc.AuthorizationBlockingStub newStub() {
+        String requestId = RequestIdUtil.getOrGenerate(MDCUtils.getRequestId());
         return AuthorizationGrpc.newBlockingStub(channel).withInterceptors(
                 GrpcUtil.getTimeoutInterceptor(umsClientConfig.getGrpcShortTimeoutSec()),
                 GrpcUtil.getTracingInterceptor(tracer),

@@ -9,7 +9,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
@@ -56,18 +55,17 @@ class UmsUsersStateProviderDispatcherTest {
         Set<String> machineUserCrns = Set.of();
 
         Map<String, UmsUsersState> expected = createExpectedResponse();
-        when(bulkUmsUsersStateProvider.get(anyString(), any(Set.class), any(Optional.class)))
+        when(bulkUmsUsersStateProvider.get(anyString(), any(Set.class)))
                 .thenReturn(expected);
 
-        Optional<String> requestIdOptional = Optional.of(UUID.randomUUID().toString());
         Map<String, UmsUsersState> response = underTest.getEnvToUmsUsersStateMap(
                 ACCOUNT_ID, ENVIRONMENT_CRNS,
-                userCrns, machineUserCrns, requestIdOptional);
+                userCrns, machineUserCrns);
 
         assertEquals(expected, response);
-        verify(bulkUmsUsersStateProvider).get(ACCOUNT_ID, ENVIRONMENT_CRNS, requestIdOptional);
+        verify(bulkUmsUsersStateProvider).get(ACCOUNT_ID, ENVIRONMENT_CRNS);
         verify(defaultUmsUsersStateProvider, never()).get(anyString(), any(Set.class),
-                any(Set.class), any(Set.class), any(Optional.class), anyBoolean());
+                any(Set.class), any(Set.class), anyBoolean());
     }
 
     @Test
@@ -75,22 +73,20 @@ class UmsUsersStateProviderDispatcherTest {
         Set<String> userCrns = Set.of();
         Set<String> machineUserCrns = Set.of();
 
-        when(bulkUmsUsersStateProvider.get(anyString(), any(Set.class), any(Optional.class)))
+        when(bulkUmsUsersStateProvider.get(anyString(), any(Set.class)))
                 .thenThrow(StatusRuntimeException.class);
         Map<String, UmsUsersState> expected = createExpectedResponse();
         when(defaultUmsUsersStateProvider.get(anyString(), any(Set.class),
-                any(Set.class), any(Set.class), any(Optional.class), anyBoolean()))
+                any(Set.class), any(Set.class), anyBoolean()))
                 .thenReturn(expected);
 
-        Optional<String> requestIdOptional = Optional.of(UUID.randomUUID().toString());
         Map<String, UmsUsersState> response = underTest.getEnvToUmsUsersStateMap(
-                ACCOUNT_ID, ENVIRONMENT_CRNS,
-                userCrns, machineUserCrns, requestIdOptional);
+                ACCOUNT_ID, ENVIRONMENT_CRNS, userCrns, machineUserCrns);
 
         assertEquals(expected, response);
-        verify(bulkUmsUsersStateProvider).get(ACCOUNT_ID, ENVIRONMENT_CRNS, requestIdOptional);
+        verify(bulkUmsUsersStateProvider).get(ACCOUNT_ID, ENVIRONMENT_CRNS);
         verify(defaultUmsUsersStateProvider).get(ACCOUNT_ID, ENVIRONMENT_CRNS,
-                userCrns, machineUserCrns, requestIdOptional, true);
+                userCrns, machineUserCrns, true);
     }
 
     @Test
@@ -100,18 +96,17 @@ class UmsUsersStateProviderDispatcherTest {
 
         Map<String, UmsUsersState> expected = createExpectedResponse();
         when(defaultUmsUsersStateProvider.get(anyString(), any(Set.class),
-                any(Set.class), any(Set.class), any(Optional.class), anyBoolean()))
+                any(Set.class), any(Set.class), anyBoolean()))
                 .thenReturn(expected);
 
-        Optional<String> requestIdOptional = Optional.of(UUID.randomUUID().toString());
         Map<String, UmsUsersState> response = underTest.getEnvToUmsUsersStateMap(
                 ACCOUNT_ID, ENVIRONMENT_CRNS,
-                userCrns, machineUserCrns, requestIdOptional);
+                userCrns, machineUserCrns);
 
         assertEquals(expected, response);
-        verify(bulkUmsUsersStateProvider, never()).get(ACCOUNT_ID, ENVIRONMENT_CRNS, requestIdOptional);
+        verify(bulkUmsUsersStateProvider, never()).get(ACCOUNT_ID, ENVIRONMENT_CRNS);
         verify(defaultUmsUsersStateProvider).get(ACCOUNT_ID, ENVIRONMENT_CRNS,
-                userCrns, machineUserCrns, requestIdOptional, false);
+                userCrns, machineUserCrns, false);
     }
 
     private Map<String, UmsUsersState> createExpectedResponse() {

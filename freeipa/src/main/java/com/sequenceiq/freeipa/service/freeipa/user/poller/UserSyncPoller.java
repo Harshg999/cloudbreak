@@ -3,7 +3,6 @@ package com.sequenceiq.freeipa.service.freeipa.user.poller;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -84,9 +83,6 @@ public class UserSyncPoller {
     @VisibleForTesting
     void syncAllFreeIpaStacks() {
         try {
-            Optional<String> requestId = Optional.of(MDCBuilder.getOrGenerateRequestId());
-            LOGGER.debug("Setting request id = {} for this poll", requestId);
-
             ThreadBasedUserCrnProvider.doAs(
                     regionAwareInternalCrnGeneratorFactory.iam().getInternalCrnForServiceAsString(), () -> {
                 LOGGER.debug("Attempting to sync users to FreeIPA stacks");
@@ -100,7 +96,7 @@ public class UserSyncPoller {
                             String accountId = stringListEntry.getKey();
                             if (userSyncPollerEntitlementChecker.isAccountEntitled(accountId)) {
                                 LOGGER.debug("Automatic usersync polling is entitled in account {}", accountId);
-                                syncFreeIpaStacksInAccount(requestId, accountId, stringListEntry.getValue());
+                                syncFreeIpaStacksInAccount(accountId, stringListEntry.getValue());
                             } else {
                                 LOGGER.debug("Automatic usersync polling is not entitled in account {}.", accountId);
                             }
@@ -111,10 +107,10 @@ public class UserSyncPoller {
         }
     }
 
-    private void syncFreeIpaStacksInAccount(Optional<String> requestId, String accountId, List<Stack> stacks) {
+    private void syncFreeIpaStacksInAccount(String accountId, List<Stack> stacks) {
         Instant cooldownThresholdTime = Instant.now().minus(cooldown);
         UmsEventGenerationIds currentGeneration =
-                umsEventGenerationIdsProvider.getEventGenerationIds(accountId, requestId);
+                umsEventGenerationIdsProvider.getEventGenerationIds(accountId);
 
         stacks.forEach(stack -> {
             UserSyncStatus userSyncStatus = userSyncStatusService.getOrCreateForStack(stack);
