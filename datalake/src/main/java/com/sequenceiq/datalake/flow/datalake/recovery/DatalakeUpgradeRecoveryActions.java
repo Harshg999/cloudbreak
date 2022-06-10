@@ -89,6 +89,8 @@ public class DatalakeUpgradeRecoveryActions {
             @Override
             protected void doExecute(SdxContext context, SdxEvent payload, Map<Object, Object> variables) {
                 LOGGER.info("Datalake recovery is in progress for {}", payload.getResourceId());
+                SdxCluster sdxCluster = sdxService.getById(payload.getResourceId());
+                eventSenderService.sendEventAndNotification(sdxCluster, context.getFlowTriggerUserCrn(), ResourceEvent.DATALAKE_RECOVERY_IN_PROGRESS);
                 sendEvent(context, DatalakeRecoveryWaitRequest.from(context));
             }
 
