@@ -38,6 +38,7 @@ base:
     - cloudera.agent
     - gateway.cm
     - nodestatus
+    - datalake_resize
 
   'G@roles:manager_agent':
     - cloudera.repo
