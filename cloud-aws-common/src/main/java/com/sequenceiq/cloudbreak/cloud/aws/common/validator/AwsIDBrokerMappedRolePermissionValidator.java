@@ -1,7 +1,9 @@
 package com.sequenceiq.cloudbreak.cloud.aws.common.validator;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -19,11 +21,16 @@ import org.slf4j.LoggerFactory;
 import com.amazonaws.auth.policy.Policy;
 import com.amazonaws.services.identitymanagement.model.AmazonIdentityManagementException;
 import com.amazonaws.services.identitymanagement.model.EvaluationResult;
+import com.amazonaws.services.identitymanagement.model.InstanceProfile;
 import com.amazonaws.services.identitymanagement.model.Role;
+import com.google.common.base.Strings;
+import com.sequenceiq.cloudbreak.auth.ThreadBasedUserCrnProvider;
+import com.sequenceiq.cloudbreak.auth.altus.EntitlementService;
 import com.sequenceiq.cloudbreak.cloud.aws.common.client.AmazonIdentityManagementClient;
 import com.sequenceiq.cloudbreak.cloud.aws.common.util.Arn;
 import com.sequenceiq.cloudbreak.cloud.aws.common.util.AwsIamService;
 import com.sequenceiq.cloudbreak.cloud.model.filesystem.CloudS3View;
+import com.sequenceiq.cloudbreak.cloud.storage.LocationHelper;
 import com.sequenceiq.cloudbreak.validation.ValidationResult.ValidationResultBuilder;
 import com.sequenceiq.common.api.cloudstorage.AccountMappingBase;
 import com.sequenceiq.common.api.cloudstorage.StorageLocationBase;
@@ -35,6 +42,12 @@ public abstract class AwsIDBrokerMappedRolePermissionValidator extends AbstractA
 
     @Inject
     private AwsIamService awsIamService;
+
+    @Inject
+    private LocationHelper locationHelper;
+
+    @Inject
+    private EntitlementService entitlementService;
 
     /**
      * Returns list of users to filter roles
@@ -73,8 +86,8 @@ public abstract class AwsIDBrokerMappedRolePermissionValidator extends AbstractA
      * @param cloudFileSystem         cloud file system to evaluate
      * @param validationResultBuilder builder for any errors encountered
      */
-    public void validate(AmazonIdentityManagementClient iam, CloudS3View cloudFileSystem,
-            ValidationResultBuilder validationResultBuilder) {
+    public void validate(AmazonIdentityManagementClient iam, CloudS3View cloudFileSystem, String backupLocation,
+            ValidationResultBuilder validationResultBuilder, InstanceProfile instanceProfile) {
         AccountMappingBase accountMappings = cloudFileSystem.getAccountMapping();
         if (accountMappings != null) {
             SortedSet<String> roleArns = getRoleArnsForUsers(getUsers(), accountMappings.getUserMappings());
@@ -82,11 +95,15 @@ public abstract class AwsIDBrokerMappedRolePermissionValidator extends AbstractA
             Set<Role> roles = awsIamService.getValidRoles(iam, roleArns, validationResultBuilder);
 
             boolean s3guardEnabled = cloudFileSystem.getS3GuardDynamoTableName() != null;
+            boolean validateBackupLocation = validateBackup(backupLocation);
             List<String> policyFileNames = getPolicyFileNames(s3guardEnabled);
 
             SortedSet<String> failedActions = new TreeSet<>();
             SortedSet<String> warnings = new TreeSet<>();
             List<Policy> policies = collectPolicies(cloudFileSystem, policyFileNames);
+            if (validateBackupLocation) {
+                policies.addAll(collectBackupRestorePolicies(cloudFileSystem, backupLocation));
+            }
             for (Role role : roles) {
                 try {
                     List<EvaluationResult> evaluationResults = awsIamService.validateRolePolicies(iam, role, policies);
@@ -138,6 +155,22 @@ public abstract class AwsIDBrokerMappedRolePermissionValidator extends AbstractA
     }
 
     /**
+     * Collects the policies and applies the replacements on them
+     * @param cloudFileSystem CloudFileSystem to get aws partition
+     * @param backupLocation Location of backup
+     * @return list of AWS policies that have to applied
+     */
+    List<Policy> collectBackupRestorePolicies(CloudS3View cloudFileSystem, String backupLocation) {
+        List<Policy> policies = new ArrayList<>();
+        if (!Strings.isNullOrEmpty(backupLocation)) {
+            Map<String, String> replacements = getBackupPolicyJsonReplacements(cloudFileSystem, backupLocation);
+            List<String> policyFileNames = Arrays.asList(getBackupPolicy(), getRestorePolicy());
+            policies.addAll(getPolicies(policyFileNames, replacements));
+        }
+        return policies;
+    }
+
+    /**
      * Get the replacements necessary for the policy json
      *
      * @param location        StorageLocationBase to get storage paths from
@@ -156,6 +189,26 @@ public abstract class AwsIDBrokerMappedRolePermissionValidator extends AbstractA
                 Map.entry("${DATALAKE_BUCKET}", datalakeBucket),
                 Map.entry("${DYNAMODB_TABLE_NAME}", dynamodbTableName)
         );
+    }
+
+    /**
+     * Get the replacements necessary for the backup/restore policy json's
+     *
+     * @param cloudFileSystem CloudFileSystem to get aws partition
+     * @param backupLocation  location where backups are stored.
+     * @return map of simple replacements for policy json
+     */
+    Map<String, String> getBackupPolicyJsonReplacements(CloudS3View cloudFileSystem,
+            String backupLocation) {
+        Map<String, String> replacements = Collections.emptyMap();
+        if (!Strings.isNullOrEmpty(backupLocation)) {
+            replacements = Map.ofEntries(
+                    Map.entry("${ARN_PARTITION}", getAwsPartition(cloudFileSystem)),
+                    Map.entry("${BACKUP_LOCATION_BASE}", backupLocation),
+                    Map.entry("${BACKUP_BUCKET}", locationHelper.parseS3BucketName(backupLocation))
+            );
+        }
+        return replacements;
     }
 
     private String getAwsPartition(CloudS3View cloudFileSystem) {
@@ -200,4 +253,8 @@ public abstract class AwsIDBrokerMappedRolePermissionValidator extends AbstractA
         return policies;
     }
 
+    private boolean validateBackup(String backupLocation) {
+        return (entitlementService.isDatalakeBackupRestorePrechecksEnabled(ThreadBasedUserCrnProvider.getAccountId())) &&
+                !Strings.isNullOrEmpty(backupLocation);
+    }
 }

@@ -38,4 +38,16 @@ public abstract class AbstractAwsSimulatePolicyValidator {
         return evaluationResult.getEvalDecision().toLowerCase().contains("deny")
                 && !CollectionUtils.isEmpty(evaluationResult.getMissingContextValues());
     }
+
+    protected String getBackupPolicy() {
+        return "aws-datalake-backup-policy.json";
+    }
+
+    protected String getRestorePolicy() {
+        return "aws-datalake-restore-policy.json";
+    }
+
+    protected String removeProtocol(String logLocationBase) {
+        return logLocationBase.replaceFirst("^s3.?://", "");
+    }
 }
