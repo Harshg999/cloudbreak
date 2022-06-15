@@ -63,7 +63,11 @@ public class CdpNodeStatusMonitorClient implements AutoCloseable {
 
     public CdpNodeStatuses nodeStatusReport(CdpNodeStatusRequest request) throws CdpNodeStatusMonitorClientException {
         CdpNodeStatuses.Builder responseBuilder = CdpNodeStatuses.Builder.builder()
-                .withNetworkReport(nodeNetworkReport(true, request.isSkipObjectMapping()))
+                .withNetworkReport(nodeNetworkReport(true, request.isSkipObjectMapping()));
+        if (request.isNetworkOnly()) {
+            return responseBuilder.build();
+        }
+        responseBuilder
                 .withServicesReport(nodeServicesReport(true, request.isSkipObjectMapping()))
                 .withSystemMetricsReport(systemMetricsReport(true, request.isSkipObjectMapping()));
         if (request.isMetering()) {
